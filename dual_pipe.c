@@ -13,12 +13,16 @@
 
 int main(int argc, char **argv)
 {
-  struct instruction *tr_entry;
-  struct instruction PCregister, IF_ID, ID_EX, EX_MEM, MEM_WB;
+  struct instruction *tr_entry[2];
+  struct instruction PCregister[2], IF_ID, ALU_ID_EX, LW_ID_EX,ALU_EX_EMPTY, LW_EX_MEM,ALU_EMPTY_WB, LW_MEM_WB;
   size_t size;
   char *trace_file_name;
   int trace_view_on = 0;
   int flush_counter = 4; //5 stage pipeline, so we have to execute 4 instructions once trace is done
+  int ALUfilled = 0;
+  int LWfilled = 0;
+  int firstInsSent = 0;
+
 
   unsigned int cycle_number = 0;
 
@@ -43,6 +47,7 @@ int main(int argc, char **argv)
   trace_init();
 
   while(1) {
+
     size = trace_get_item(&tr_entry); /* put the instruction into a buffer */
 
     if (!size && flush_counter==0) {       /* no more instructions to simulate */
@@ -53,16 +58,29 @@ int main(int argc, char **argv)
       cycle_number++;
 
       /* move instructions one stage ahead */
-      MEM_WB = EX_MEM;
-      EX_MEM = ID_EX;
-      ID_EX = IF_ID;
-      IF_ID = PCregister;
+      LW_MEM_WB = LW_EX_MEM;
+      LW_EX_MEM = LW_ID_EX;
+
+      ALU_EMPTY_WB = ALU_EX_EMPTY;
+      ALU_EX_EMPTY = ALU_ID_EX;
+
+
+      /* Check first instruction in buffer to see if it can go*/
+      if(PCregister[0].type==ti_RTYPE){
+        ALU_ID_EX = PCRegister[0];
+        PCregister.type=NULL;
+        ALUfilled=1;
+      }
+
 
       if(!size){    /* if no more instructions in trace, reduce flush_counter */
         flush_counter--;
       }
       else{   /* copy trace entry into IF stage */
-        memcpy(&PCregister, tr_entry , sizeof(PCregister));
+        if(PCregister[0].type==NULL)
+          memcpy(&PCregister[0], tr_entry[0] , sizeof(PCregister[0]));
+        if(PCregister[1].type==NULL)
+          memcpy(&PCregister[1], tr_entry[1] , sizeof(PCregister[0]));
       }
 
       //printf("==============================================================================\n");
