@@ -9,7 +9,36 @@
 #include<stdlib.h>
 #include <inttypes.h>
 #include <arpa/inet.h>
-#include "new.h"
+#include <string.h>
+#include "new_cpu.h"
+
+int checkForALU(struct instruction PCregister, struct instruction ALU_ID_EX){
+  if(PCregister.type==ti_RTYPE){
+    ALU_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+  if(PCregister.type==ti_ITYPE){
+    ALU_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+  if(PCregister.type==ti_BRANCH){
+    ALU_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+  if(PCregister.type==ti_SPECIAL){
+    ALU_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+  if(PCregister.type==(ti_JTYPE||ti_JRTYPE)){
+    ALU_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+}
 
 int main(int argc, char **argv)
 {
@@ -48,7 +77,7 @@ int main(int argc, char **argv)
 
   while(1) {
 
-    size = trace_get_item(&tr_entry); /* put the instruction into a buffer */
+    size = trace_get_item(&tr_entry[0]); /* put the instruction into a buffer */
 
     if (!size && flush_counter==0) {       /* no more instructions to simulate */
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
@@ -66,20 +95,16 @@ int main(int argc, char **argv)
 
 
       /* Check first instruction in buffer to see if it can go*/
-      if(PCregister[0].type==ti_RTYPE){
-        ALU_ID_EX = PCRegister[0];
-        PCregister.type=NULL;
-        ALUfilled=1;
-      }
+      ALUfilled = checkForALU(PCregister[1],ALU_ID_EX);
 
 
       if(!size){    /* if no more instructions in trace, reduce flush_counter */
         flush_counter--;
       }
       else{   /* copy trace entry into IF stage */
-        if(PCregister[0].type==NULL)
+        if(PCregister[0].type==-1)
           memcpy(&PCregister[0], tr_entry[0] , sizeof(PCregister[0]));
-        if(PCregister[1].type==NULL)
+        if(PCregister[1].type==-1)
           memcpy(&PCregister[1], tr_entry[1] , sizeof(PCregister[0]));
       }
 
@@ -88,40 +113,40 @@ int main(int argc, char **argv)
 
 
     if (trace_view_on && cycle_number>=5) {/* print the instruction exiting the pipeline if trace_view_on=1 */
-      switch(MEM_WB.type) {
+      switch(LW_MEM_WB.type) {
         case ti_NOP:
           printf("[cycle %d] NOP:\n",cycle_number) ;
           break;
         case ti_RTYPE: /* registers are translated for printing by subtracting offset  */
           printf("[cycle %d] RTYPE:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(dReg: %d) \n", MEM_WB.PC, MEM_WB.sReg_a, MEM_WB.sReg_b, MEM_WB.dReg);
+		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(dReg: %d) \n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.sReg_b, LW_MEM_WB.dReg);
           break;
         case ti_ITYPE:
           printf("[cycle %d] ITYPE:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", MEM_WB.PC, MEM_WB.sReg_a, MEM_WB.dReg, MEM_WB.Addr);
+		  printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.dReg, LW_MEM_WB.Addr);
           break;
         case ti_LOAD:
           printf("[cycle %d] LOAD:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", MEM_WB.PC, MEM_WB.sReg_a, MEM_WB.dReg, MEM_WB.Addr);
+		  printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.dReg, LW_MEM_WB.Addr);
           break;
         case ti_STORE:
           printf("[cycle %d] STORE:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", MEM_WB.PC, MEM_WB.sReg_a, MEM_WB.sReg_b, MEM_WB.Addr);
+		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.sReg_b, LW_MEM_WB.Addr);
           break;
         case ti_BRANCH:
           printf("[cycle %d] BRANCH:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", MEM_WB.PC, MEM_WB.sReg_a, MEM_WB.sReg_b, MEM_WB.Addr);
+		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.sReg_b, LW_MEM_WB.Addr);
           break;
         case ti_JTYPE:
           printf("[cycle %d] JTYPE:",cycle_number) ;
-		  printf(" (PC: %d)(addr: %d)\n", MEM_WB.PC, MEM_WB.Addr);
+		  printf(" (PC: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.Addr);
           break;
         case ti_SPECIAL:
           printf("[cycle %d] SPECIAL:\n",cycle_number) ;
           break;
         case ti_JRTYPE:
           printf("[cycle %d] JRTYPE:",cycle_number) ;
-		  printf(" (PC: %d) (sReg_a: %d)(addr: %d)\n", MEM_WB.PC, MEM_WB.dReg, MEM_WB.Addr);
+		  printf(" (PC: %d) (sReg_a: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.dReg, LW_MEM_WB.Addr);
           break;
       }
     }
