@@ -40,6 +40,19 @@ int checkForALU(struct instruction PCregister, struct instruction ALU_ID_EX){
   }
 }
 
+int checkForLW(struct instruction PCregister, struct instruction LW_ID_EX){
+  if(PCregister.type==ti_LOAD){
+    LW_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+  if(PCregister.type==(ti_STORE)){
+    LW_ID_EX = PCregister;
+    PCregister.type=-1;
+    return 1;
+  }
+}
+
 int main(int argc, char **argv)
 {
   struct instruction *tr_entry[2];
@@ -95,8 +108,14 @@ int main(int argc, char **argv)
 
 
       /* Check first instruction in buffer to see if it can go*/
-      ALUfilled = checkForALU(PCregister[1],ALU_ID_EX);
-
+      ALUfilled = checkForALU(PCregister[0],ALU_ID_EX);
+      if(ALUfilled){
+        LWfilled = checkForLW(PCregister[1],LW_ID_EX);
+      }
+      else{
+        ALUfilled = checkForALU(PCregister[1],ALU_ID_EX);
+        LWfilled = checkForLW(PCregister[0],LW_ID_EX);
+      }
 
       if(!size){    /* if no more instructions in trace, reduce flush_counter */
         flush_counter--;
