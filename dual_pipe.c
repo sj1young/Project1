@@ -62,7 +62,7 @@ int main(int argc, char **argv)
   size_t size;
   char *trace_file_name;
   int trace_view_on = 0;
-  int flush_counter = 4; //5 stage pipeline, so we have to execute 4 instructions once trace is done
+  int flush_counter = 7; //5 stage pipeline, so we have to execute 4 instructions once trace is done
   int ALUfilled = 0;
   int LWfilled = 0;
   int firstInsSent = 0;
@@ -89,12 +89,19 @@ int main(int argc, char **argv)
   }
 
   trace_init();
-
+  printf("fhkjsahfklhkhk\n\n\n\n");
   while(1) {
-    if(tr_entry[0]==0)
+    printf("jfhadsfjldsahflkashkl%d\n",tr_entry[0]);
+    fflush();
+    if(tr_entry[0]==0){
       size = trace_get_item(&tr_entry[0]); /* put the instruction into a buffer */
-    if(tr_entry[1]==0)
+      printf("getting something\n");
+    }
+    if(tr_entry[1]==0){
       size = trace_get_item(&tr_entry[0]);
+      printf("getting something\n");
+
+    }
 
     if (!size && flush_counter==0) {       /* no more instructions to simulate */
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
@@ -164,14 +171,6 @@ int main(int argc, char **argv)
         case ti_NOP:
           printf("[cycle %d] NOP:\n",cycle_number) ;
           break;
-        case ti_RTYPE: /* registers are translated for printing by subtracting offset  */
-          printf("[cycle %d] RTYPE:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(dReg: %d) \n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.sReg_b, LW_MEM_WB.dReg);
-          break;
-        case ti_ITYPE:
-          printf("[cycle %d] ITYPE:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.dReg, LW_MEM_WB.Addr);
-          break;
         case ti_LOAD:
           printf("[cycle %d] LOAD:",cycle_number) ;
 		  printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.dReg, LW_MEM_WB.Addr);
@@ -180,20 +179,38 @@ int main(int argc, char **argv)
           printf("[cycle %d] STORE:",cycle_number) ;
 		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.sReg_b, LW_MEM_WB.Addr);
           break;
+        case ti_SPECIAL:
+          printf("[cycle %d] SPECIAL:\n",cycle_number) ;
+          break;
+      }
+    }
+    if (trace_view_on && cycle_number>=5) {/* print the instruction exiting the pipeline if trace_view_on=1 */
+      switch(ALU_MEM_WB.type) {
+        case ti_NOP:
+          printf("[cycle %d] NOP:\n",cycle_number) ;
+          break;
+        case ti_RTYPE: /* registers are translated for printing by subtracting offset  */
+          printf("[cycle %d] RTYPE:",cycle_number) ;
+      printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(dReg: %d) \n", ALU_MEM_WB.PC, ALU_MEM_WB.sReg_a, ALU_MEM_WB.sReg_b, ALU_MEM_WB.dReg);
+          break;
+        case ti_ITYPE:
+          printf("[cycle %d] ITYPE:",cycle_number) ;
+      printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.sReg_a, ALU_MEM_WB.dReg, ALU_MEM_WB.Addr);
+          break;
         case ti_BRANCH:
           printf("[cycle %d] BRANCH:",cycle_number) ;
-		  printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.sReg_a, LW_MEM_WB.sReg_b, LW_MEM_WB.Addr);
+      printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.sReg_a, ALU_MEM_WB.sReg_b, ALU_MEM_WB.Addr);
           break;
         case ti_JTYPE:
           printf("[cycle %d] JTYPE:",cycle_number) ;
-		  printf(" (PC: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.Addr);
+      printf(" (PC: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.Addr);
           break;
         case ti_SPECIAL:
           printf("[cycle %d] SPECIAL:\n",cycle_number) ;
           break;
         case ti_JRTYPE:
           printf("[cycle %d] JRTYPE:",cycle_number) ;
-		  printf(" (PC: %d) (sReg_a: %d)(addr: %d)\n", LW_MEM_WB.PC, LW_MEM_WB.dReg, LW_MEM_WB.Addr);
+      printf(" (PC: %d) (sReg_a: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.dReg, ALU_MEM_WB.Addr);
           break;
       }
     }
