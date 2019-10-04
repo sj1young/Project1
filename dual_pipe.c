@@ -15,42 +15,44 @@
 int checkForALU(struct instruction PCregister, struct instruction ALU_ID_EX){
   if(PCregister.type==ti_RTYPE){
     ALU_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
   if(PCregister.type==ti_ITYPE){
     ALU_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
   if(PCregister.type==ti_BRANCH){
     ALU_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
   if(PCregister.type==ti_SPECIAL){
     ALU_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
   if(PCregister.type==(ti_JTYPE||ti_JRTYPE)){
     ALU_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
+  return 0;
 }
 
 int checkForLW(struct instruction PCregister, struct instruction LW_ID_EX){
   if(PCregister.type==ti_LOAD){
     LW_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
   if(PCregister.type==(ti_STORE)){
     LW_ID_EX = PCregister;
-    PCregister.type=-1;
+    PCregister.type=30;
     return 1;
   }
+  return 0;
 }
 
 int main(int argc, char **argv)
@@ -89,8 +91,10 @@ int main(int argc, char **argv)
   trace_init();
 
   while(1) {
-
-    size = trace_get_item(&tr_entry[0]); /* put the instruction into a buffer */
+    if(tr_entry[0]==0)
+      size = trace_get_item(&tr_entry[0]); /* put the instruction into a buffer */
+    if(tr_entry[1]==0)
+      size = trace_get_item(&tr_entry[0]);
 
     if (!size && flush_counter==0) {       /* no more instructions to simulate */
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
@@ -116,16 +120,40 @@ int main(int argc, char **argv)
         ALUfilled = checkForALU(PCregister[1],ALU_ID_EX);
         LWfilled = checkForLW(PCregister[0],LW_ID_EX);
       }
+      /*If one of the pipes isn't filled it throws in a no-op*/
+      if(ALUfilled==0)
+        ALU_ID_EX.type=ti_NOP;
 
-      if(!size){    /* if no more instructions in trace, reduce flush_counter */
-        flush_counter--;
+      if(LWfilled==0)
+        LW_ID_EX.type=ti_NOP;
+
+        /*Checks which PC Registers were used, and loads the tr_entry
+        items in order*/
+        if(!size){    /* if no more instructions in trace, reduce flush_counter */
+          flush_counter--;
+        }
+
+      if(PCregister[0].type==30 && PCregister[1].type==30)
+      {
+        memcpy(&PCregister[0], tr_entry[0] , sizeof(PCregister[0]));
+        memcpy(&PCregister[1], tr_entry[1] , sizeof(PCregister[0]));
+        tr_entry[0]=0;
+        tr_entry[1]=0;
       }
-      else{   /* copy trace entry into IF stage */
-        if(PCregister[0].type==-1)
-          memcpy(&PCregister[0], tr_entry[0] , sizeof(PCregister[0]));
-        if(PCregister[1].type==-1)
-          memcpy(&PCregister[1], tr_entry[1] , sizeof(PCregister[0]));
+      else if(PCregister[0].type==30)
+      {
+        PCregister[0]=PCregister[1];
+        memcpy(&PCregister[1], tr_entry[0] , sizeof(PCregister[0]));
+        tr_entry[0]=tr_entry[1];
+        tr_entry[1]=0;
       }
+      else if(PCregister[1].type==30)
+      {
+        memcpy(&PCregister[1], tr_entry[0] , sizeof(PCregister[0]));
+        tr_entry[0]=tr_entry[1];
+        tr_entry[1]=0;
+      }
+
 
       //printf("==============================================================================\n");
     }
