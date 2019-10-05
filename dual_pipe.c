@@ -38,6 +38,11 @@ int checkForALU(struct instruction PCregister, struct instruction ALU_ID_EX){
     PCregister.type=30;
     return 1;
   }
+  if(PCregister.type==(ti_NOP)){
+    ALU_ID_EX = PCregister;
+    PCregister.type=30;
+    return 1;
+  }
   return 0;
 }
 
@@ -48,6 +53,11 @@ int checkForLW(struct instruction PCregister, struct instruction LW_ID_EX){
     return 1;
   }
   if(PCregister.type==(ti_STORE)){
+    LW_ID_EX = PCregister;
+    PCregister.type=30;
+    return 1;
+  }
+  if(PCregister.type==(ti_NOP)){
     LW_ID_EX = PCregister;
     PCregister.type=30;
     return 1;
@@ -66,6 +76,10 @@ int main(int argc, char **argv)
   int ALUfilled = 0;
   int LWfilled = 0;
   int firstInsSent = 0;
+  tr_entry[0]=0;
+  tr_entry[1]=0;
+  PCregister[0].type=30;
+  PCregister[0].type=30;
 
 
   unsigned int cycle_number = 0;
@@ -89,17 +103,16 @@ int main(int argc, char **argv)
   }
 
   trace_init();
-  printf("fhkjsahfklhkhk\n\n\n\n");
+  printf("Entering Loop\n\n\n\n");
   while(1) {
-    printf("jfhadsfjldsahflkashkl%d\n",tr_entry[0]);
-    fflush();
+    printf("Check Buffers\n");
     if(tr_entry[0]==0){
       size = trace_get_item(&tr_entry[0]); /* put the instruction into a buffer */
-      printf("getting something\n");
+      printf("Getting something for 1\n");
     }
     if(tr_entry[1]==0){
-      size = trace_get_item(&tr_entry[0]);
-      printf("getting something\n");
+      size = trace_get_item(&tr_entry[1]);
+      printf("Getting something for 2\n");
 
     }
 
@@ -134,16 +147,16 @@ int main(int argc, char **argv)
       if(LWfilled==0)
         LW_ID_EX.type=ti_NOP;
 
-        /*Checks which PC Registers were used, and loads the tr_entry
-        items in order*/
         if(!size){    /* if no more instructions in trace, reduce flush_counter */
           flush_counter--;
         }
-
+        /*Checks which PC Registers were used, and loads the tr_entry
+        items in order*/
       if(PCregister[0].type==30 && PCregister[1].type==30)
       {
         memcpy(&PCregister[0], tr_entry[0] , sizeof(PCregister[0]));
         memcpy(&PCregister[1], tr_entry[1] , sizeof(PCregister[0]));
+        printf("Copied to both reg\n");
         tr_entry[0]=0;
         tr_entry[1]=0;
       }
@@ -153,12 +166,14 @@ int main(int argc, char **argv)
         memcpy(&PCregister[1], tr_entry[0] , sizeof(PCregister[0]));
         tr_entry[0]=tr_entry[1];
         tr_entry[1]=0;
+        printf("Copied to first reg %d\n",PCregister[1].type);
       }
       else if(PCregister[1].type==30)
       {
         memcpy(&PCregister[1], tr_entry[0] , sizeof(PCregister[0]));
         tr_entry[0]=tr_entry[1];
         tr_entry[1]=0;
+        printf("Copied to second reg\n");
       }
 
 
@@ -185,32 +200,32 @@ int main(int argc, char **argv)
       }
     }
     if (trace_view_on && cycle_number>=5) {/* print the instruction exiting the pipeline if trace_view_on=1 */
-      switch(ALU_MEM_WB.type) {
+      switch(ALU_EMPTY_WB.type) {
         case ti_NOP:
           printf("[cycle %d] NOP:\n",cycle_number) ;
           break;
         case ti_RTYPE: /* registers are translated for printing by subtracting offset  */
           printf("[cycle %d] RTYPE:",cycle_number) ;
-      printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(dReg: %d) \n", ALU_MEM_WB.PC, ALU_MEM_WB.sReg_a, ALU_MEM_WB.sReg_b, ALU_MEM_WB.dReg);
+      printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(dReg: %d) \n", ALU_EMPTY_WB.PC, ALU_EMPTY_WB.sReg_a, ALU_EMPTY_WB.sReg_b, ALU_EMPTY_WB.dReg);
           break;
         case ti_ITYPE:
           printf("[cycle %d] ITYPE:",cycle_number) ;
-      printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.sReg_a, ALU_MEM_WB.dReg, ALU_MEM_WB.Addr);
+      printf(" (PC: %d)(sReg_a: %d)(dReg: %d)(addr: %d)\n", ALU_EMPTY_WB.PC, ALU_EMPTY_WB.sReg_a, ALU_EMPTY_WB.dReg, ALU_EMPTY_WB.Addr);
           break;
         case ti_BRANCH:
           printf("[cycle %d] BRANCH:",cycle_number) ;
-      printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.sReg_a, ALU_MEM_WB.sReg_b, ALU_MEM_WB.Addr);
+      printf(" (PC: %d)(sReg_a: %d)(sReg_b: %d)(addr: %d)\n", ALU_EMPTY_WB.PC, ALU_EMPTY_WB.sReg_a, ALU_EMPTY_WB.sReg_b, ALU_EMPTY_WB.Addr);
           break;
         case ti_JTYPE:
           printf("[cycle %d] JTYPE:",cycle_number) ;
-      printf(" (PC: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.Addr);
+      printf(" (PC: %d)(addr: %d)\n", ALU_EMPTY_WB.PC, ALU_EMPTY_WB.Addr);
           break;
         case ti_SPECIAL:
           printf("[cycle %d] SPECIAL:\n",cycle_number) ;
           break;
         case ti_JRTYPE:
           printf("[cycle %d] JRTYPE:",cycle_number) ;
-      printf(" (PC: %d) (sReg_a: %d)(addr: %d)\n", ALU_MEM_WB.PC, ALU_MEM_WB.dReg, ALU_MEM_WB.Addr);
+      printf(" (PC: %d) (sReg_a: %d)(addr: %d)\n", ALU_EMPTY_WB.PC, ALU_EMPTY_WB.dReg, ALU_EMPTY_WB.Addr);
           break;
       }
     }
