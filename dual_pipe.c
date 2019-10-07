@@ -12,54 +12,65 @@
 #include <string.h>
 #include "new_cpu.h"
 
-int checkForALU(struct instruction PCregister, struct instruction ALU_ID_EX){
-  if(PCregister.type==ti_RTYPE){
-    ALU_ID_EX = PCregister;
-    PCregister.type=30;
+int checkForALU(struct instruction *PCregister, struct instruction *ALU_ID_EX){
+  printf("ALUCheck@ = %d\n",PCregister->PC);
+
+  if(PCregister->type==ti_RTYPE){
+    printf("found r-type");
+    *ALU_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==ti_ITYPE){
-    ALU_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==ti_ITYPE){
+    printf("found i-type");
+    *ALU_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==ti_BRANCH){
-    ALU_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==ti_BRANCH){
+    *ALU_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==ti_SPECIAL){
-    ALU_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==ti_SPECIAL){
+    *ALU_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==(ti_JTYPE||ti_JRTYPE)){
-    ALU_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==(ti_JTYPE||ti_JRTYPE)){
+    *ALU_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==(ti_NOP)){
-    ALU_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==(ti_NOP)){
+    //printf("No-Op@ %d/n",PCregister->PC);
+    *ALU_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
+  if(PCregister->type==30){
+    printf("This shouldn't happen\n");
+    return 1;
+  }
+
   return 0;
 }
 
-int checkForLW(struct instruction PCregister, struct instruction LW_ID_EX){
-  if(PCregister.type==ti_LOAD){
-    LW_ID_EX = PCregister;
-    PCregister.type=30;
+int checkForLW(struct instruction *PCregister, struct instruction *LW_ID_EX){
+printf("LWCheck@ %d\n\n\n\n\n\n",PCregister->PC);
+  if(PCregister->type==ti_LOAD){
+    *LW_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==(ti_STORE)){
-    LW_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==(ti_STORE)){
+    *LW_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
-  if(PCregister.type==(ti_NOP)){
-    LW_ID_EX = PCregister;
-    PCregister.type=30;
+  if(PCregister->type==(ti_NOP)){
+    *LW_ID_EX = *PCregister;
+    PCregister->type=30;
     return 1;
   }
   return 0;
@@ -67,19 +78,19 @@ int checkForLW(struct instruction PCregister, struct instruction LW_ID_EX){
 
 int main(int argc, char **argv)
 {
-  struct instruction *tr_entry[2];
+  struct instruction *tr_entry1,*tr_entry2;
   struct instruction PCregister[2], IF_ID, ALU_ID_EX, LW_ID_EX,ALU_EX_EMPTY, LW_EX_MEM,ALU_EMPTY_WB, LW_MEM_WB;
   size_t size;
   char *trace_file_name;
   int trace_view_on = 0;
-  int flush_counter = 7; //5 stage pipeline, so we have to execute 4 instructions once trace is done
+  int flush_counter = 5; //5 stage pipeline, so we have to execute 4 instructions once trace is done
   int ALUfilled = 0;
   int LWfilled = 0;
   int firstInsSent = 0;
-  tr_entry[0]=0;
-  tr_entry[1]=0;
-  PCregister[0].type=30;
-  PCregister[0].type=30;
+  tr_entry1=0;
+  tr_entry2=0;
+  PCregister[0].type=0;
+  PCregister[1].type=0;
 
 
   unsigned int cycle_number = 0;
@@ -104,17 +115,20 @@ int main(int argc, char **argv)
 
   trace_init();
   printf("Entering Loop\n\n\n\n");
+
+  ///////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////////////////////////////////////////////////
   while(1) {
     printf("Check Buffers\n");
-    if(tr_entry[0]==0){
-      size = trace_get_item(&tr_entry[0]); /* put the instruction into a buffer */
-      printf("Getting something for 1\n");
+    if(tr_entry1==0){
+      size = trace_get_item(&tr_entry1); /* put the instruction into a buffer */
+      //printf("Getting something for 1\n");
     }
-    if(tr_entry[1]==0){
-      size = trace_get_item(&tr_entry[1]);
-      printf("Getting something for 2\n");
+    if(tr_entry2==0){
+      size = trace_get_item(&tr_entry2);
+      //printf("Getting something for 2\n");
+    }
 
-    }
 
     if (!size && flush_counter==0) {       /* no more instructions to simulate */
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
@@ -132,20 +146,20 @@ int main(int argc, char **argv)
 
 
       /* Check first instruction in buffer to see if it can go*/
-      ALUfilled = checkForALU(PCregister[0],ALU_ID_EX);
+      ALUfilled = checkForALU(&PCregister[0],&ALU_ID_EX);
       if(ALUfilled){
-        LWfilled = checkForLW(PCregister[1],LW_ID_EX);
+        LWfilled = checkForLW(&PCregister[1],&LW_ID_EX);
       }
       else{
-        ALUfilled = checkForALU(PCregister[1],ALU_ID_EX);
-        LWfilled = checkForLW(PCregister[0],LW_ID_EX);
+        ALUfilled = checkForALU(&PCregister[1],&ALU_ID_EX);
+        LWfilled = checkForLW(&PCregister[0],&LW_ID_EX);
       }
       /*If one of the pipes isn't filled it throws in a no-op*/
-      if(ALUfilled==0)
-        ALU_ID_EX.type=ti_NOP;
+      //if(ALUfilled==0)
+        //ALU_ID_EX.type=ti_NOP;
 
-      if(LWfilled==0)
-        LW_ID_EX.type=ti_NOP;
+      //if(LWfilled==0)
+        //LW_ID_EX.type=ti_NOP;
 
         if(!size){    /* if no more instructions in trace, reduce flush_counter */
           flush_counter--;
@@ -154,28 +168,30 @@ int main(int argc, char **argv)
         items in order*/
       if(PCregister[0].type==30 && PCregister[1].type==30)
       {
-        memcpy(&PCregister[0], tr_entry[0] , sizeof(PCregister[0]));
-        memcpy(&PCregister[1], tr_entry[1] , sizeof(PCregister[0]));
+        memcpy(&PCregister[0], tr_entry1 , sizeof(PCregister[0]));
+        memcpy(&PCregister[1], tr_entry2 , sizeof(PCregister[0]));
         printf("Copied to both reg\n");
-        tr_entry[0]=0;
-        tr_entry[1]=0;
+        tr_entry1=0;
+        tr_entry2=0;
       }
       else if(PCregister[0].type==30)
       {
         PCregister[0]=PCregister[1];
-        memcpy(&PCregister[1], tr_entry[0] , sizeof(PCregister[0]));
-        tr_entry[0]=tr_entry[1];
-        tr_entry[1]=0;
+        memcpy(&PCregister[1], tr_entry1 , sizeof(PCregister[0]));
+        tr_entry1=tr_entry2;
+        tr_entry2=0;
         printf("Copied to first reg %d\n",PCregister[1].type);
       }
       else if(PCregister[1].type==30)
       {
-        memcpy(&PCregister[1], tr_entry[0] , sizeof(PCregister[0]));
-        tr_entry[0]=tr_entry[1];
-        tr_entry[1]=0;
+        memcpy(&PCregister[1], tr_entry1 , sizeof(PCregister[0]));
+        tr_entry1=tr_entry2;
+        tr_entry2=0;
         printf("Copied to second reg\n");
       }
-
+      printf("PC: %d %d,\t%d %d\n",PCregister[0].PC,PCregister[0].type,PCregister[1].PC,PCregister[1].type);
+      printf("ALU: %d %d,\t%d %d,\t%d %d\n",ALU_ID_EX.PC,ALU_ID_EX.type,ALU_EX_EMPTY.PC,ALU_EX_EMPTY.type,ALU_EMPTY_WB.PC,ALU_EMPTY_WB.type);
+      printf("LW: %d %d,\t%d %d,\t%d %d\n",LW_ID_EX.PC,LW_ID_EX.type,LW_EX_MEM.PC,LW_EX_MEM.type,LW_MEM_WB.PC,LW_MEM_WB.type);
 
       //printf("==============================================================================\n");
     }
