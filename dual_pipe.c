@@ -12,39 +12,45 @@
 #include <string.h>
 #include "new_cpu.h"
 
-int checkForALU(struct instruction *PCregister, struct instruction *ALU_ID_EX){
-  printf("ALUCheck@ = %d\n",PCregister->PC);
+int checkForALU(struct instruction *PCregister, struct instruction *ALU_ID_EX,unsigned char *aluType){
+  //printf("ALUCheck@ = %d\t%d\n",PCregister->PC,PCregister->type);
 
   if(PCregister->type==ti_RTYPE){
-    printf("found r-type");
+    //printf("found r-type");
     *ALU_ID_EX = *PCregister;
+    *aluType = PCregister->type;
     PCregister->type=30;
     return 1;
   }
   if(PCregister->type==ti_ITYPE){
-    printf("found i-type");
+    //printf("found i-type");
     *ALU_ID_EX = *PCregister;
+    *aluType = PCregister->type;
     PCregister->type=30;
     return 1;
   }
   if(PCregister->type==ti_BRANCH){
     *ALU_ID_EX = *PCregister;
+    *aluType = PCregister->type;
     PCregister->type=30;
     return 1;
   }
   if(PCregister->type==ti_SPECIAL){
     *ALU_ID_EX = *PCregister;
+    *aluType = PCregister->type;
     PCregister->type=30;
     return 1;
   }
-  if(PCregister->type==(ti_JTYPE||ti_JRTYPE)){
+  if(PCregister->type==ti_JTYPE||PCregister->type==ti_JRTYPE){
     *ALU_ID_EX = *PCregister;
+    *aluType = PCregister->type;
     PCregister->type=30;
     return 1;
   }
   if(PCregister->type==(ti_NOP)){
     //printf("No-Op@ %d/n",PCregister->PC);
     *ALU_ID_EX = *PCregister;
+    *aluType = PCregister->type;
     PCregister->type=30;
     return 1;
   }
@@ -52,13 +58,13 @@ int checkForALU(struct instruction *PCregister, struct instruction *ALU_ID_EX){
     printf("This shouldn't happen\n");
     return 1;
   }
-
+  //printf("%d\t%d\n",PCregister->type,ti_BRANCH);
   return 0;
 }
 
 int checkForLW(struct instruction *PCregister, struct instruction *LW_ID_EX){
-printf("LWCheck@ %d\n\n\n\n\n\n",PCregister->PC);
-  if(PCregister->type==ti_LOAD){
+//printf("ALUCheck@ = %d\t%d\n\n\n",PCregister->PC,PCregister->type);
+  if(PCregister->type==(ti_LOAD)){
     *LW_ID_EX = *PCregister;
     PCregister->type=30;
     return 1;
@@ -80,13 +86,18 @@ int main(int argc, char **argv)
 {
   struct instruction *tr_entry1,*tr_entry2;
   struct instruction PCregister[2], IF_ID, ALU_ID_EX, LW_ID_EX,ALU_EX_EMPTY, LW_EX_MEM,ALU_EMPTY_WB, LW_MEM_WB;
+  struct instruction noop={0,65,65,65,0,65};
+  struct instruction *flush = malloc(sizeof(struct instruction));
+  *flush = noop;
   size_t size;
   char *trace_file_name;
   int trace_view_on = 0;
-  int flush_counter = 5; //5 stage pipeline, so we have to execute 4 instructions once trace is done
+  int flush_counter = 4; //5 stage pipeline, so we have to execute 4 instructions once trace is done
   int ALUfilled = 0;
   int LWfilled = 0;
-  int firstInsSent = 0;
+  int aluSRC = 0;
+  unsigned char aluType = 0;
+  char qwop;
   tr_entry1=0;
   tr_entry2=0;
   PCregister[0].type=0;
@@ -119,18 +130,23 @@ int main(int argc, char **argv)
   ///////////////////////////////////////////////////////////////////////////////
   ///////////////////////////////////////////////////////////////////////////////
   while(1) {
-    printf("Check Buffers\n");
-    if(tr_entry1==0){
+    //printf("Check Buffers\n");
+    if(size==0&&tr_entry1==0){
+      tr_entry1=flush;
+    } else if(tr_entry1==0){
       size = trace_get_item(&tr_entry1); /* put the instruction into a buffer */
       //printf("Getting something for 1\n");
     }
-    if(tr_entry2==0){
+    if(size==0&&tr_entry2==0){
+      tr_entry2=flush;
+    }else if(tr_entry2==0){
       size = trace_get_item(&tr_entry2);
       //printf("Getting something for 2\n");
     }
 
 
-    if (!size && flush_counter==0) {       /* no more instructions to simulate */
+    if (!size && ALU_ID_EX.type==ti_NOP &&ALU_EX_EMPTY.type==ti_NOP &&ALU_EMPTY_WB.type==ti_NOP &&
+        LW_ID_EX.type==ti_NOP &&LW_EX_MEM.type==ti_NOP &&LW_MEM_WB.type==ti_NOP) {       /* no more instructions to simulate */
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
       break;
     }
@@ -144,51 +160,87 @@ int main(int argc, char **argv)
       ALU_EMPTY_WB = ALU_EX_EMPTY;
       ALU_EX_EMPTY = ALU_ID_EX;
 
-
-      /* Check first instruction in buffer to see if it can go*/
-      ALUfilled = checkForALU(&PCregister[0],&ALU_ID_EX);
-      if(ALUfilled){
-        LWfilled = checkForLW(&PCregister[1],&LW_ID_EX);
+      if(ALU_ID_EX.type!=ti_BRANCH&&ALU_ID_EX.type!=ti_JTYPE&&ALU_ID_EX.type!=ti_JRTYPE){
+          /* Check first instruction in buffer to see if it can go*/
+          ALUfilled = checkForALU(&PCregister[0],&ALU_ID_EX,&aluType);
+          if(ALUfilled){
+            aluSRC=0;
+            LWfilled = checkForLW(&PCregister[1],&LW_ID_EX);
+          }
+          else{
+            ALUfilled = checkForALU(&PCregister[1],&ALU_ID_EX,&aluType);
+            if(ALUfilled)
+              aluSRC=1;
+            LWfilled = checkForLW(&PCregister[0],&LW_ID_EX);
+          }
       }
       else{
-        ALUfilled = checkForALU(&PCregister[1],&ALU_ID_EX);
-        LWfilled = checkForLW(&PCregister[0],&LW_ID_EX);
-      }
-      /*If one of the pipes isn't filled it throws in a no-op*/
-      //if(ALUfilled==0)
-        //ALU_ID_EX.type=ti_NOP;
+        ALU_ID_EX=noop;
+        LW_ID_EX=noop;
 
-      //if(LWfilled==0)
-        //LW_ID_EX.type=ti_NOP;
+      }
+
+      if(ALU_ID_EX.sReg_a==LW_ID_EX.dReg||ALU_ID_EX.sReg_b==LW_ID_EX.dReg){
+        ALU_ID_EX=noop;
+        PCregister[aluSRC].type=aluType;
+        //fgets(&aluType,2,stdin);
+      }
+      if(ALU_ID_EX.sReg_a==LW_EX_MEM.dReg||ALU_ID_EX.sReg_b==LW_EX_MEM.dReg){
+        ALU_ID_EX=noop;
+        PCregister[aluSRC].type=aluType;
+        //fgets(&aluType,2,stdin);
+      }
+
+      /*If one of the pipes isn't filled it throws in a no-op*/
+      if(ALUfilled==0)
+        ALU_ID_EX=noop;
+
+      if(LWfilled==0)
+        LW_ID_EX=noop;
 
         if(!size){    /* if no more instructions in trace, reduce flush_counter */
           flush_counter--;
         }
         /*Checks which PC Registers were used, and loads the tr_entry
         items in order*/
-      if(PCregister[0].type==30 && PCregister[1].type==30)
-      {
-        memcpy(&PCregister[0], tr_entry1 , sizeof(PCregister[0]));
-        memcpy(&PCregister[1], tr_entry2 , sizeof(PCregister[0]));
-        printf("Copied to both reg\n");
-        tr_entry1=0;
-        tr_entry2=0;
+      if(size>0){
+          if(PCregister[0].type==30 && PCregister[1].type==30)
+          {
+            memcpy(&PCregister[0], tr_entry1 , sizeof(PCregister[0]));
+            memcpy(&PCregister[1], tr_entry2 , sizeof(PCregister[0]));
+            //printf("Copied to both reg\n");
+            tr_entry1=0;
+            tr_entry2=0;
+          }
+          else if(PCregister[0].type==30)
+          {
+            PCregister[0]=PCregister[1];
+            memcpy(&PCregister[1], tr_entry1 , sizeof(PCregister[0]));
+            tr_entry1=tr_entry2;
+            tr_entry2=0;
+            //printf("Copied to first reg %d\n",PCregister[1].type);
+          }
+          else if(PCregister[1].type==30)
+          {
+            memcpy(&PCregister[1], tr_entry1 , sizeof(PCregister[0]));
+            tr_entry1=tr_entry2;
+            tr_entry2=0;
+          }
       }
-      else if(PCregister[0].type==30)
-      {
-        PCregister[0]=PCregister[1];
-        memcpy(&PCregister[1], tr_entry1 , sizeof(PCregister[0]));
-        tr_entry1=tr_entry2;
-        tr_entry2=0;
-        printf("Copied to first reg %d\n",PCregister[1].type);
+      else{
+        if(PCregister[0].type==30&&PCregister[1].type!=30){
+          PCregister[0]=PCregister[1];
+          PCregister[1]=noop;
+
+        }
+
+        if(PCregister[0].type==30)
+          PCregister[0]=noop;
+        if(PCregister[1].type==30)
+          PCregister[1]=noop;
       }
-      else if(PCregister[1].type==30)
-      {
-        memcpy(&PCregister[1], tr_entry1 , sizeof(PCregister[0]));
-        tr_entry1=tr_entry2;
-        tr_entry2=0;
-        printf("Copied to second reg\n");
-      }
+      printf("Here3\n");
+
       printf("PC: %d %d,\t%d %d\n",PCregister[0].PC,PCregister[0].type,PCregister[1].PC,PCregister[1].type);
       printf("ALU: %d %d,\t%d %d,\t%d %d\n",ALU_ID_EX.PC,ALU_ID_EX.type,ALU_EX_EMPTY.PC,ALU_EX_EMPTY.type,ALU_EMPTY_WB.PC,ALU_EMPTY_WB.type);
       printf("LW: %d %d,\t%d %d,\t%d %d\n",LW_ID_EX.PC,LW_ID_EX.type,LW_EX_MEM.PC,LW_EX_MEM.type,LW_MEM_WB.PC,LW_MEM_WB.type);
