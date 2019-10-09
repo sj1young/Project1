@@ -132,13 +132,13 @@ int main(int argc, char **argv)
   while(1) {
     //printf("Check Buffers\n");
     if(size==0&&tr_entry1==0){
-      tr_entry1=flush;
+      tr_entry1=0;
     } else if(tr_entry1==0){
       size = trace_get_item(&tr_entry1); /* put the instruction into a buffer */
       //printf("Getting something for 1\n");
     }
     if(size==0&&tr_entry2==0){
-      tr_entry2=flush;
+      tr_entry2=0;
     }else if(tr_entry2==0){
       size = trace_get_item(&tr_entry2);
       //printf("Getting something for 2\n");
@@ -191,6 +191,7 @@ int main(int argc, char **argv)
         //fgets(&aluType,2,stdin);
       }
 
+
       /*If one of the pipes isn't filled it throws in a no-op*/
       if(ALUfilled==0)
         ALU_ID_EX=noop;
@@ -239,11 +240,11 @@ int main(int argc, char **argv)
         if(PCregister[1].type==30)
           PCregister[1]=noop;
       }
-      printf("Here3\n");
+      //printf("Here3\n");
 
-      printf("PC: %d %d,\t%d %d\n",PCregister[0].PC,PCregister[0].type,PCregister[1].PC,PCregister[1].type);
-      printf("ALU: %d %d,\t%d %d,\t%d %d\n",ALU_ID_EX.PC,ALU_ID_EX.type,ALU_EX_EMPTY.PC,ALU_EX_EMPTY.type,ALU_EMPTY_WB.PC,ALU_EMPTY_WB.type);
-      printf("LW: %d %d,\t%d %d,\t%d %d\n",LW_ID_EX.PC,LW_ID_EX.type,LW_EX_MEM.PC,LW_EX_MEM.type,LW_MEM_WB.PC,LW_MEM_WB.type);
+      //printf("PC: %d %d,\t%d %d\n",PCregister[0].PC,PCregister[0].type,PCregister[1].PC,PCregister[1].type);
+      //printf("ALU: %d %d,\t%d %d,\t%d %d\n",ALU_ID_EX.PC,ALU_ID_EX.type,ALU_EX_EMPTY.PC,ALU_EX_EMPTY.type,ALU_EMPTY_WB.PC,ALU_EMPTY_WB.type);
+      //printf("LW: %d %d,\t%d %d,\t%d %d\n",LW_ID_EX.PC,LW_ID_EX.type,LW_EX_MEM.PC,LW_EX_MEM.type,LW_MEM_WB.PC,LW_MEM_WB.type);
 
       //printf("==============================================================================\n");
     }

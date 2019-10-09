@@ -44,7 +44,8 @@ int main(int argc, char **argv)
   trace_init();
 
   while(1) {
-    size = trace_get_item(&tr_entry); /* put the instruction into a buffer */
+    if(size>0)
+      size = trace_get_item(&tr_entry); /* put the instruction into a buffer */
 
     if (!size && flush_counter==0) {       /* no more instructions to simulate */
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
